@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "782078317431",
+    "project_id": "pcbuilding-cae35",
+    "storage_bucket": "pcbuilding-cae35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:782078317431:android:22d269802717fbdf1c0772",
+        "android_client_info": {
+          "package_name": "com.example.zavrsni"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8uxkEBBI3xk5gEn87oF_k-9jI78jS51I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
