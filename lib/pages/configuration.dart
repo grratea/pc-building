@@ -7,6 +7,7 @@ class Configuration {
   String? psuId;
   String? caseId;
 
+
   Map<String, dynamic> toMap() {
     return {
       'cpu': cpuId,

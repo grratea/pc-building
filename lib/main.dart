@@ -12,35 +12,17 @@ import 'package:zavrsni/pages/psu_screen.dart';
 import 'package:zavrsni/pages/ram_screen.dart';
 import 'package:zavrsni/pages/storage_screen.dart';
 import 'package:zavrsni/pages/summary_screen.dart';
-
 import 'pages/configuration_provider.dart';
-
-// void main() async {
-//   WidgetsFlutterBinding.ensureInitialized();
-//   await Firebase.initializeApp();
-//   runApp(MaterialApp(
-//       initialRoute: '/home',
-//       routes: {
-//         // '/' : (context) => Loading(),
-//         '/home': (context) => HomePage(),
-//         '/cpu': (context) => CpuScreen(),
-//         // '/mobo': (context) => ,
-//         // '/gpu': (context) => ,
-//         // '/ram': (context) => ,
-//         // '/': (context) => ,
-//         // '/': (context) => ,
-//       },
-//   )
-//   );
-// }
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(
     MultiProvider(
-      providers: [Provider<AuthService>(create: (_) => AuthService()), ChangeNotifierProvider(create: (_) => ConfigurationProvider()),],
+      providers: [
+        Provider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => ConfigurationProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -52,9 +34,27 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PC Configurator',
-      theme: ThemeData(/* your theme */),
-      home: const AuthWrapper(), // Auth handles login/home decision
+      title: 'Build My PC',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green.shade900,
+          brightness: Brightness.dark,
+          surface: Colors.black,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.green.shade900,
+          centerTitle: true,
+          elevation: 4,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      home: const AuthWrapper(),
       routes: {
         '/home': (context) => HomePage(),
         '/cpu': (context) => CpuScreen(),
@@ -64,7 +64,8 @@ class MyApp extends StatelessWidget {
         '/storage': (context) => StorageScreen(),
         '/psu': (context) => PsuScreen(),
         '/case': (context) => CaseScreen(),
-        '/summary': (context) => SummaryScreen()
+        '/summary': (context) => SummaryScreen(),
+        '/saved_configurations': (context) => SummaryScreen(),
       },
     );
   }

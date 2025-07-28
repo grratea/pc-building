@@ -1,27 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:zavrsni/pages/configuration.dart';
 
-// class ConfigurationProvider extends ChangeNotifier {
-//   Configuration _currentConfig = Configuration();
-//
-//   Configuration get currentConfig => _currentConfig;
-//
-//   void setCpu(String cpuId) {
-//     _currentConfig.cpuId = cpuId;
-//     notifyListeners();
-//   }
-//
-//   void setMotherboard(String moboId) {
-//     _currentConfig.motherboardId = moboId;
-//     notifyListeners();
-//   }
-//
-// // Add setters for other components
-// }
-
-
 class ConfigurationProvider extends ChangeNotifier {
-  Configuration _currentConfig = Configuration();
+  final Configuration _currentConfig = Configuration();
   String? _cpuSocket;
 
   Configuration get currentConfig => _currentConfig;

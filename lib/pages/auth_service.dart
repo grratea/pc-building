@@ -15,11 +15,9 @@ class AuthService {
         email: email,
         password: password,
       );
-
       if (result.user != null) {
         await _ensureUserDocument(result.user!);
       }
-
       return result.user;
     } catch (e) {
       print("Sign in error: $e");

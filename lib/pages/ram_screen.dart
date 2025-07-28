@@ -1,38 +1,43 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:zavrsni/pages/top_screen.dart';
 import 'configuration_provider.dart';
 
 class RamScreen extends StatefulWidget {
   const RamScreen({super.key});
 
   @override
-  State<RamScreen> createState() => _RamScreenState();
+  State<RamScreen> createState() => RamScreenState();
 }
 
-class _RamScreenState extends State<RamScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late Stream<QuerySnapshot> _ramsStream;
-  String _searchQuery = '';
-  String? _moboDdrType;
+class RamScreenState extends State<RamScreen> {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  late Stream<QuerySnapshot> ramsStream;
+  String searchQuery = '';
+  String? moboDdrType;
 
   @override
   void initState() {
     super.initState();
-    _ramsStream = _firestore.collection('rams').snapshots();
-    _loadMoboDdrType();
+    ramsStream = firestore.collection('rams').snapshots();
+    loadMoboDdrType();
   }
 
-  Future<void> _loadMoboDdrType() async {
-    final configProvider = Provider.of<ConfigurationProvider>(context, listen: false);
+  Future<void> loadMoboDdrType() async {
+    final configProvider = Provider.of<ConfigurationProvider>(
+      context,
+      listen: false,
+    );
     final moboId = configProvider.currentConfig.motherboardId;
 
     if (moboId != null) {
-      final moboDoc = await _firestore.collection('mobos').doc(moboId).get();
+      final moboDoc = await firestore.collection('mobos').doc(moboId).get();
       if (moboDoc.exists) {
         final moboData = moboDoc.data() as Map<String, dynamic>;
         setState(() {
-          _moboDdrType = (moboData['ddrType'] as String?)?.toUpperCase();
+          moboDdrType = (moboData['ddrType'] as String?)?.toUpperCase();
         });
       }
     }
@@ -40,133 +45,80 @@ class _RamScreenState extends State<RamScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Select RAM',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: RamSearchDelegate(_ramsStream, _moboDdrType),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.green.shade900.withAlpha(204),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: Column(
+    return TopScreenWithSearch(
+      title: 'Select RAM',
+      hintText: 'Select RAMs...',
+      stream: ramsStream,
+      builder: (context, data, searchQuery, sortAscending) {
+        var rams =
+            data.docs.where((doc) {
+              final ramDdr = (doc['type'] as String?)?.toUpperCase();
+              final name = (doc['name'] as String?)?.toLowerCase() ?? '';
+
+              final ddrCompatible =
+                  moboDdrType == null || ramDdr == moboDdrType;
+              final matchesSearch = name.contains(searchQuery);
+
+              return ddrCompatible && matchesSearch;
+            }).toList();
+
+        rams.sort((a, b) {
+          final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
+          final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
+
+          return sortAscending
+              ? priceA.compareTo(priceB)
+              : priceB.compareTo(priceA);
+        });
+
+        return Column(
           children: [
-            if (_moboDdrType != null)
+            if (moboDdrType != null)
               Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: EdgeInsets.all(8),
                 child: Container(
-                  padding: const EdgeInsets.all(8),
-                  color: Colors.orange.shade800,
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.shade900,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                   child: Text(
-                    'Showing RAM compatible with $_moboDdrType',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    'SHOWING RAM FOR $moboDdrType TYPE',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search RAM...',
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.green.shade900.withOpacity(0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                style: const TextStyle(color: Colors.white),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-              ),
-            ),
+            SizedBox(height: 10),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _ramsStream,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No RAM found'));
-                  }
-
-                  var rams = snapshot.data!.docs.where((doc) {
-                    final ramDdr = (doc['ddrType'] as String?)?.toUpperCase();
-                    final name = (doc['name'] as String?)?.toLowerCase() ?? '';
-
-                    // Filter by DDR compatibility and search query
-                    final ddrCompatible = _moboDdrType == null || ramDdr == _moboDdrType;
-                    final matchesSearch = name.contains(_searchQuery);
-
-                    return ddrCompatible && matchesSearch;
-                  }).toList()
-                    ..sort((a, b) {
-                      final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
-                      final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
-                      if (priceA != priceB) return priceA.compareTo(priceB);
-                      return a['name'].toString().compareTo(b['name'].toString());
-                    });
-
-                  return ListView.builder(
-                    itemCount: rams.length,
-                    itemBuilder: (context, index) {
-                      var ram = rams[index];
-                      return _buildRamCard(ram);
-                    },
-                  );
+              child: ListView.builder(
+                itemCount: rams.length,
+                itemBuilder: (context, index) {
+                  var ram = rams[index];
+                  return buildRamCard(ram);
                 },
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildRamCard(QueryDocumentSnapshot ram) {
+  Widget buildRamCard(QueryDocumentSnapshot ram) {
     final price = (ram['price'] as num?)?.toDouble();
-    final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
-    final capacity = ram['capacity'] as String? ?? 'N/A';
-    final speed = ram['speed'] as String? ?? 'N/A';
-    final ddrType = (ram['ddrType'] as String?)?.toUpperCase() ?? 'N/A';
+    final priceString = price != null
+        ? '\$${price.toStringAsFixed(2)}'
+        : 'Price N/A';
+    final speed = ram['speed'] as num? ?? 'N/A';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.green.shade900.withOpacity(0.5),
+      color: Colors.grey.withAlpha(65),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: const Icon(Icons.memory, color: Colors.white, size: 36),
@@ -175,7 +127,7 @@ class _RamScreenState extends State<RamScreen> {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 20,
           ),
         ),
         subtitle: Column(
@@ -187,102 +139,176 @@ class _RamScreenState extends State<RamScreen> {
               style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
             Text(
-              'Capacity: $capacity',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            Text(
-              'Speed: $speed',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            Text(
-              'Type: $ddrType',
-              style: const TextStyle(color: Colors.white70),
+              'Speed: $speed MHz',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white70),
         onTap: () {
-          Provider.of<ConfigurationProvider>(context, listen: false).setRam(ram.id);
-          Navigator.pushNamed(context, '/storage');
+          openDetails(context, ram);
         },
       ),
     );
   }
 }
 
-class RamSearchDelegate extends SearchDelegate {
-  final Stream<QuerySnapshot> ramsStream;
-  final String? moboDdrType;
 
-  RamSearchDelegate(this.ramsStream, this.moboDdrType);
+void openDetails(BuildContext context, QueryDocumentSnapshot ram) {
+  final images = (ram['images'] as List<dynamic>? ?? [])
+      .map((e) => e.toString())
+      .toList();
+  final name = ram['name'] ?? 'Unknown RAM';
+  final type = ram['type']?.toString() ?? 'N/A';
+  final capacity = ram['capacity']?.toString() ?? 'N/A';
+  final speed = ram['speed']?.toString() ?? 'N/A';
+  final price = ram['price'] != null ? '\$${ram['price']}' : 'N/A';
+  final manufacturer = ram['manufacturer'] ?? 'Unknown';
+  final description = ram['description'] ?? 'No description available.';
+  final latency = ram['latency']?.toString() ?? 'N/A';
+  final modules = ram['modules']?.toString() ?? 'N/A';
+  final voltage = ram['voltage']?.toString() ?? 'N/A';
 
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: ramsStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final results = snapshot.data!.docs.where((doc) {
-          final ramDdr = (doc['ddrType'] as String?)?.toUpperCase();
-          final name = (doc['name'] as String?)?.toLowerCase() ?? '';
-
-          // Apply DDR compatibility filter
-          final ddrCompatible = moboDdrType == null || ramDdr == moboDdrType;
-          final matchesSearch = name.contains(query.toLowerCase());
-
-          return ddrCompatible && matchesSearch;
-        }).toList();
-
-        return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (context, index) {
-            final ram = results[index];
-            final price = (ram['price'] as num?)?.toDouble();
-            final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
-            return ListTile(
-              title: Text(ram['name']),
-              subtitle: Text(priceString),
-              onTap: () {
-                close(context, ram);
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (images.isNotEmpty)
+                  CarouselSlider(
+                    options: CarouselOptions(
+                      height: 180,
+                      enlargeCenterPage: true,
+                      enableInfiniteScroll: false,
+                      viewportFraction: 0.85,
+                    ),
+                    items: images.map((imgUrl) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          height: 180,
+                        ),
+                      );
+                    }).toList(),
+                  )
+                else
+                  Container(
+                    height: 180,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.memory, color: Colors.white38, size: 72),
+                  ),
+                const SizedBox(height: 18),
+                // Name
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                // Description
+                Text(
+                  description,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                // Attribute table
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade900.withAlpha(80),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Table(
+                    columnWidths: const {
+                      0: IntrinsicColumnWidth(),
+                      1: FlexColumnWidth(),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      specRow('Price', price),
+                      specRow('Manufacturer', manufacturer),
+                      specRow('Type', type),
+                      specRow('Capacity (GB)', capacity),
+                      specRow('Speed (MHz)', speed),
+                      specRow('Latency', latency),
+                      specRow('Modules', modules),
+                      specRow('Voltage (V)', voltage),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green.shade800,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 14,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Provider.of<ConfigurationProvider>(
+                  context,
+                  listen: false,
+                ).setRam(ram.id);
+                Navigator.pushNamed(context, '/storage');
               },
-            );
-          },
-        );
-      },
-    );
-  }
+              child: const Text("SAVE"),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+TableRow specRow(String label, String value) {
+  return TableRow(
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    ],
+  );
 }

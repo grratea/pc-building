@@ -1,35 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'top_screen.dart';
 import 'configuration_provider.dart';
-
-void main() {
-  runApp(
-    MaterialApp(
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green.shade900,
-          brightness: Brightness.dark,
-          surface: Colors.black,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.green.shade900,
-          centerTitle: true,
-          elevation: 4,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      home: CpuScreen(),
-    ),
-  );
-}
+import 'package:carousel_slider/carousel_slider.dart';
 
 class CpuScreen extends StatefulWidget {
   const CpuScreen({super.key});
@@ -39,138 +13,66 @@ class CpuScreen extends StatefulWidget {
 }
 
 class _CpuScreenState extends State<CpuScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late Stream<QuerySnapshot> _cpusStream;
-  String _searchQuery = '';
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  late Stream<QuerySnapshot> cpusStream;
 
   @override
   void initState() {
     super.initState();
-    _cpusStream = _firestore.collection('cpus').snapshots();
+    cpusStream = firestore.collection('cpus').snapshots();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Select CPU',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: CpuSearchDelegate(_cpusStream),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.green.shade900.withAlpha(204),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search CPUs...',
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.green.shade900.withOpacity(0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                style: const TextStyle(color: Colors.white),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-              ),
-            ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _cpusStream,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
+    return TopScreenWithSearch(
+      title: 'Select CPU',
+      hintText: 'Search CPUs...',
+      stream: cpusStream,
+      builder: (context, data, searchQuery, sortAscending) {
+        var cpus = data.docs
+            .where(
+              (doc) =>
+                  doc['name'].toString().toLowerCase().contains(searchQuery),
+            )
+            .toList();
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+        cpus.sort((a, b) {
+          final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
+          final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
+          return sortAscending
+              ? priceA.compareTo(priceB)
+              : priceB.compareTo(priceA);
+        });
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No CPUs found'));
-                  }
-
-                  // Filter and sort CPUs
-                  var cpus = snapshot.data!.docs
-                      .where((doc) => doc['name']
-                      .toString()
-                      .toLowerCase()
-                      .contains(_searchQuery))
-                      .toList()
-                    ..sort((a, b) {
-                      // Safely get prices and convert to double
-                      final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
-                      final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
-
-                      if (priceA != priceB) return priceA.compareTo(priceB);
-                      return a['name'].compareTo(b['name']);
-                    });
-
-                  return ListView.builder(
-                    itemCount: cpus.length,
-                    itemBuilder: (context, index) {
-                      var cpu = cpus[index];
-                      return _buildCpuCard(cpu);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+        return ListView.builder(
+          itemCount: cpus.length,
+          itemBuilder: (context, index) {
+            var cpu = cpus[index];
+            return buildCpuCard(cpu);
+          },
+        );
+      },
     );
   }
 
-  Widget _buildCpuCard(QueryDocumentSnapshot cpu) {
-    // Safely convert price to double
+  Widget buildCpuCard(QueryDocumentSnapshot cpu) {
     final price = (cpu['price'] as num?)?.toDouble();
-    final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
+    final priceString = price != null
+        ? '\$${price.toStringAsFixed(2)}'
+        : 'Price N/A';
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.green.shade900.withOpacity(0.5),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: Colors.grey.withAlpha(65),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(15),
         leading: const Icon(Icons.memory, color: Colors.white, size: 36),
         title: Text(
           cpu['name'] ?? 'Unnamed CPU',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 21,
           ),
         ),
         subtitle: Column(
@@ -184,99 +86,174 @@ class _CpuScreenState extends State<CpuScreen> {
             if (cpu['socket'] != null)
               Text(
                 'Socket: ${cpu['socket']}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            if (cpu['cores'] != null)
-              Text(
-                'Cores: ${cpu['cores']}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            if (cpu['threads'] != null)
-              Text(
-                'Threads: ${cpu['threads']}',
-                style: const TextStyle(color: Colors.white70),
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white70),
         onTap: () {
-          print('Selected CPU: ${cpu['name']}');
-          final socket = cpu['socket'] as String? ?? 'Unknown';
-          Provider.of<ConfigurationProvider>(context, listen: false).setCpu(cpu.id, socket);
-          Navigator.pushNamed(context, '/mobo');
+          // print('Selected CPU: ${cpu['name']}');   // debugging
+          openDetails(context, cpu);
         },
       ),
     );
   }
 }
 
-class CpuSearchDelegate extends SearchDelegate {
-  final Stream<QuerySnapshot> cpusStream;
+void openDetails(BuildContext context, QueryDocumentSnapshot cpu) {
+  final images = (cpu['images'] as List<dynamic>? ?? [])
+      .map((e) => e.toString())
+      .toList();
+  final name = cpu['name'] ?? 'Unknown CPU';
+  final price = cpu['price'] != null ? '\$${cpu['price']}' : 'N/A';
+  final manufacturer = cpu['manufacturer'] ?? 'Unknown';
+  final power = cpu['power']?.toString() ?? 'N/A';
+  final socket = cpu['socket'] ?? 'Unknown';
+  final cores = cpu['cores']?.toString() ?? 'N/A';
+  final threads = cpu['threads']?.toString() ?? 'N/A';
+  final frequency = cpu['frequency']?.toString() ?? 'N/A';
+  final description = cpu['description'] ?? 'No description available.';
 
-  CpuSearchDelegate(this.cpusStream);
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: cpusStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final results = snapshot.data!.docs.where((doc) {
-          return doc['name'].toString().toLowerCase().contains(query.toLowerCase());
-        }).toList();
-
-        return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (context, index) {
-            final cpu = results[index];
-            // Safely format price for search results
-            final price = (cpu['price'] as num?)?.toDouble();
-            final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
-
-            return ListTile(
-              title: Text(cpu['name']),
-              subtitle: Text(priceString),
-              onTap: () {
-                close(context, cpu);
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (images.isNotEmpty)
+                  CarouselSlider(
+                    options: CarouselOptions(
+                      height: 180,
+                      enlargeCenterPage: true,
+                      enableInfiniteScroll: false,
+                      viewportFraction: 0.85,
+                    ),
+                    items: images.map((imgUrl) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          height: 180,
+                        ),
+                      );
+                    }).toList(),
+                  )
+                else
+                  Container(
+                    height: 180,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.memory, color: Colors.white38, size: 72),
+                  ),
+                const SizedBox(height: 18),
+                // Name
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                // Description
+                Text(
+                  description,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                // Attribute table
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade900.withAlpha(80),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Table(
+                    columnWidths: const {
+                      0: IntrinsicColumnWidth(),
+                      1: FlexColumnWidth(),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      specRow('Price', price),
+                      specRow('Manufacturer', manufacturer),
+                      specRow('Power (W)', power),
+                      specRow('Socket', socket),
+                      specRow('Cores', cores),
+                      specRow('Threads', threads),
+                      specRow('Frequency (GHz)', frequency),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green.shade800,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 14,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                final socket = cpu['socket'] as String? ?? 'Unknown';
+                Provider.of<ConfigurationProvider>(
+                  context,
+                  listen: false,
+                ).setCpu(cpu.id, socket);
+                Navigator.pushNamed(context, '/mobo');
               },
-            );
-          },
-        );
-      },
-    );
-  }
+              child: const Text("SAVE"),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+TableRow specRow(String label, String value) {
+  return TableRow(
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    ],
+  );
 }

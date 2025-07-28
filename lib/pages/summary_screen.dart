@@ -1,23 +1,3 @@
-
-
-
-
-
-// FilledButton(
-// onPressed: () async {
-// final config = Provider.of<ConfigurationProvider>(context, listen: false)
-//     .currentConfig;
-//
-// await FirebaseFirestore.instance
-//     .collection('configurations')
-//     .add(config.toMap());
-//
-// Navigator.popUntil(context, ModalRoute.withName('/home'));
-// },
-// child: Text("Save Configuration"),
-// )
-
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -27,22 +7,22 @@ class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
 
   @override
-  State<SummaryScreen> createState() => _SummaryScreenState();
+  State<SummaryScreen> createState() => SummaryScreenState();
 }
 
-class _SummaryScreenState extends State<SummaryScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  double _totalPrice = 0.0;
-  bool _isLoading = true;
-  Map<String, Map<String, dynamic>> _components = {};
+class SummaryScreenState extends State<SummaryScreen> {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  double totalPrice = 0.0;
+  bool isLoading = true;
+  Map<String, Map<String, dynamic>> componentsAll = {};
 
   @override
   void initState() {
     super.initState();
-    _loadConfiguration();
+    loadConfiguration();
   }
 
-  Future<void> _loadConfiguration() async {
+  Future<void> loadConfiguration() async {
     final configProvider = Provider.of<ConfigurationProvider>(context, listen: false);
     final config = configProvider.currentConfig;
 
@@ -63,7 +43,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // Fetch all component data
     for (final entry in componentTypes.entries) {
       if (entry.value != null) {
-        final future = _firestore.collection(_getCollectionName(entry.key))
+        final future = firestore.collection(getCollectionName(entry.key))
             .doc(entry.value)
             .get()
             .then((doc) {
@@ -74,7 +54,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         componentFutures.add(future);
       }
     }
-
     // Wait for all fetches to complete
     await Future.wait(componentFutures);
 
@@ -86,13 +65,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
     });
 
     setState(() {
-      _components = components;
-      _totalPrice = total;
-      _isLoading = false;
+      componentsAll = components;
+      totalPrice = total;
+      isLoading = false;
     });
   }
 
-  String _getCollectionName(String componentType) {
+  String getCollectionName(String componentType) {
     switch (componentType) {
       case 'CPU': return 'cpus';
       case 'GPU': return 'gpus';
@@ -105,7 +84,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
-  Widget _buildComponentCard(String title, Map<String, dynamic>? data) {
+  Widget buildComponentCard(String title, Map<String, dynamic>? data) {
     if (data == null) {
       return const SizedBox.shrink();
     }
@@ -118,13 +97,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
       color: Colors.green.shade900.withOpacity(0.3),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: _getComponentIcon(title),
+        leading: getComponentIcon(title),
         title: Text(
           data['name'] ?? 'Unknown Component',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 17,
           ),
         ),
         subtitle: Column(
@@ -133,27 +112,27 @@ class _SummaryScreenState extends State<SummaryScreen> {
             const SizedBox(height: 4),
             Text(
               priceString,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: Colors.white70, fontSize: 15),
             ),
             if (title == 'CPU' && data['socket'] != null)
               Text('Socket: ${data['socket']}', style: const TextStyle(color: Colors.white70)),
             if (title == 'GPU' && data['memory'] != null)
-              Text('VRAM: ${data['memory']}', style: const TextStyle(color: Colors.white70)),
+              Text('Memory: ${data['memory']}', style: const TextStyle(color: Colors.white70)),
             if (title == 'RAM' && data['capacity'] != null)
-              Text('Capacity: ${data['capacity']}', style: const TextStyle(color: Colors.white70)),
+              Text('Capacity: ${data['capacity']} GB', style: const TextStyle(color: Colors.white70)),
             if (title == 'Storage' && data['capacity'] != null)
-              Text('Capacity: ${data['capacity']}', style: const TextStyle(color: Colors.white70)),
-            if (title == 'PSU' && data['power'] != null)
-              Text('Wattage: ${data['power']}W', style: const TextStyle(color: Colors.white70)),
+              Text('Capacity: ${data['capacity']} GB', style: const TextStyle(color: Colors.white70)),
+            if (title == 'PSU' && data['wattage'] != null)
+              Text('Wattage: ${data['wattage']} W', style: const TextStyle(color: Colors.white70)),
             if (title == 'Case' && data['maxGpuLength'] != null)
-              Text('Max GPU: ${data['maxGpuLength']}mm', style: const TextStyle(color: Colors.white70)),
+              Text('Max GPU: ${data['maxGpuLength']} mm', style: const TextStyle(color: Colors.white70)),
           ],
         ),
       ),
     );
   }
 
-  Widget _getComponentIcon(String componentType) {
+  Widget getComponentIcon(String componentType) {
     switch (componentType) {
       case 'CPU': return const Icon(Icons.memory, color: Colors.white, size: 30);
       case 'GPU': return const Icon(Icons.videogame_asset, color: Colors.white, size: 30);
@@ -172,34 +151,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
       appBar: AppBar(
         title: const Text(
           'Configuration Summary',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         backgroundColor: Colors.black,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              // Implement save functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuration saved!')),
-              );
-            },
-          ),
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
+            begin: Alignment.bottomCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.green.shade900.withAlpha(204),
+              Colors.green.shade600.withAlpha(260),
               Colors.black,
             ],
           ),
         ),
-        child: _isLoading
+        child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
           children: [
@@ -218,13 +186,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  ..._components.entries.map((entry) => _buildComponentCard(entry.key, entry.value)).toList(),
+                  ...componentsAll.entries.map((entry) => buildComponentCard(entry.key, entry.value)).toList(),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.all(16),
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withAlpha(10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -233,7 +201,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '\$${_totalPrice.toStringAsFixed(2)}',
+                    '\$${totalPrice.toStringAsFixed(2)}',
                     style: const TextStyle(color: Colors.green, fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ],

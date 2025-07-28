@@ -1,38 +1,47 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:zavrsni/pages/top_screen.dart';
 import 'configuration_provider.dart';
 
 class CaseScreen extends StatefulWidget {
   const CaseScreen({super.key});
 
   @override
-  State<CaseScreen> createState() => _CaseScreenState();
+  State<CaseScreen> createState() => CaseScreenState();
 }
 
-class _CaseScreenState extends State<CaseScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late Stream<QuerySnapshot> _casesStream;
-  String _searchQuery = '';
-  double? _gpuLength;
+class CaseScreenState extends State<CaseScreen> {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  late Stream<QuerySnapshot> casesStream;
+  String searchQuery = '';
+  num? gpuLength;
 
   @override
   void initState() {
     super.initState();
-    _casesStream = _firestore.collection('cases').snapshots();
-    _loadGpuLength();
+    casesStream = firestore.collection('cases').snapshots();
+    loadGpuLength();
   }
 
-  Future<void> _loadGpuLength() async {
-    final configProvider = Provider.of<ConfigurationProvider>(context, listen: false);
+  Future<void> loadGpuLength() async {
+    final configProvider = Provider.of<ConfigurationProvider>(
+      context,
+      listen: false,
+    );
     final gpuId = configProvider.currentConfig.gpuId;
 
     if (gpuId != null) {
-      final gpuDoc = await _firestore.collection('gpus').doc(gpuId).get();
+      final gpuDoc = await firestore.collection('gpus').doc(gpuId).get();
       if (gpuDoc.exists) {
         final gpuData = gpuDoc.data() as Map<String, dynamic>;
         setState(() {
-          _gpuLength = (gpuData['length'] as num?)?.toDouble();
+          if (gpuData['dimension'] is List && gpuData['dimension'].isNotEmpty) {
+            gpuLength = (gpuData['dimension'][0] as num?)?.toDouble();
+          } else {
+            gpuLength = null;
+          }
         });
       }
     }
@@ -40,144 +49,104 @@ class _CaseScreenState extends State<CaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Select Case',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: CaseSearchDelegate(_casesStream, _gpuLength),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.green.shade900.withAlpha(204),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: Column(
+    return TopScreenWithSearch(
+      title: 'Select Case',
+      hintText: 'Search Cases...',
+      stream: casesStream,
+      builder: (context, data, searchQuery, sortAscending) {
+        var cases = data.docs.where((doc) {
+          final maxGpuLength = (doc['maxGpuLength'] as num?)?.toDouble();
+          final name = doc['name'].toString().toLowerCase();
+
+          return maxGpuLength != null &&
+              maxGpuLength >= gpuLength! &&
+              name.contains(searchQuery);
+        }).toList();
+
+        cases.sort((a, b) {
+          final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
+          final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
+
+          if (priceA != priceB) {
+            return sortAscending
+                ? priceA.compareTo(priceB)
+                : priceB.compareTo(priceA);
+          }
+          return a['name'].toString().compareTo(b['name'].toString());
+        });
+
+        return Column(
           children: [
-            // GPU/case compatibility banner
-            if (_gpuLength != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                color: Colors.red.shade800,
-                child: Column(
-                  children: [
-                    Text(
-                      'Your GPU length: ${_gpuLength!.toStringAsFixed(0)} mm',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+            if (gpuLength != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade900,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    'Your GPU length: ${gpuLength!.toStringAsFixed(0)} mm',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Only cases that fit your GPU are shown',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search Cases...',
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.green.shade900.withOpacity(0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                style: const TextStyle(color: Colors.white),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade900,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Text(
+                    'No GPU selected.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-            ),
+            const SizedBox(height: 10),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _casesStream,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No cases found'));
-                  }
-
-                  var cases = snapshot.data!.docs.where((doc) {
-                    final maxGpuLength = (doc['maxGpuLength'] as num?)?.toDouble();
-                    final name = doc['name'].toString().toLowerCase();
-
-                    // Show all cases if GPU length is not set
-                    if (_gpuLength == null) return true;
-
-                    // Filter by GPU length and search query
-                    return maxGpuLength != null &&
-                        maxGpuLength >= _gpuLength! &&
-                        name.contains(_searchQuery);
-                  }).toList()
-                    ..sort((a, b) {
-                      final priceA = (a['price'] as num?)?.toDouble() ?? 0.0;
-                      final priceB = (b['price'] as num?)?.toDouble() ?? 0.0;
-                      if (priceA != priceB) return priceA.compareTo(priceB);
-                      return a['name'].toString().compareTo(b['name'].toString());
-                    });
-
-                  return ListView.builder(
-                    itemCount: cases.length,
-                    itemBuilder: (context, index) {
-                      var pcCase = cases[index];
-                      return _buildCaseCard(pcCase, _gpuLength);
-                    },
-                  );
+              child: ListView.builder(
+                itemCount: cases.length,
+                itemBuilder: (context, index) {
+                  var pcCase = cases[index];
+                  return buildCaseCard(context, pcCase, gpuLength);
                 },
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildCaseCard(QueryDocumentSnapshot pcCase, double? gpuLength) {
+  Widget buildCaseCard(
+    BuildContext context,
+    QueryDocumentSnapshot pcCase,
+    num? gpuLength,
+  ) {
     final maxGpuLength = (pcCase['maxGpuLength'] as num?)?.toDouble();
     final price = (pcCase['price'] as num?)?.toDouble();
-    final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
-    final canFitGpu = gpuLength == null || maxGpuLength == null || maxGpuLength >= gpuLength;
+    final priceString = price != null
+        ? '\$${price.toStringAsFixed(2)}'
+        : 'Price N/A';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.green.shade900.withOpacity(0.5),
+      color: Colors.grey.withAlpha(65),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: const Icon(Icons.computer, color: Colors.white, size: 36),
@@ -186,7 +155,7 @@ class _CaseScreenState extends State<CaseScreen> {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 21,
           ),
         ),
         subtitle: Column(
@@ -194,135 +163,182 @@ class _CaseScreenState extends State<CaseScreen> {
           children: [
             const SizedBox(height: 8),
             Text(
-              'Max GPU Length: ${maxGpuLength?.toStringAsFixed(0) ?? 'N/A'} mm',
+              priceString,
               style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
             Text(
-              priceString,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                // Icon(
-                //   canFitGpu ? Icons.check_circle : Icons.warning,
-                //   color: canFitGpu ? Colors.green : Colors.orange,
-                //   size: 16,
-                // ),
-                // const SizedBox(width: 4),
-                // Text(
-                //   canFitGpu
-                //       ? (gpuLength == null
-                //       ? 'GPU not selected'
-                //       : 'Fits your GPU')
-                //       : 'GPU too long',
-                //   style: TextStyle(
-                //     color: canFitGpu ? Colors.green : Colors.orange,
-                //     fontWeight: FontWeight.bold,
-                //   ),
-                // ),
-              ],
+              'Max GPU Length: ${maxGpuLength?.toStringAsFixed(0) ?? 'N/A'} mm',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white70),
         onTap: () {
-          if (gpuLength == null || canFitGpu) {
-            Provider.of<ConfigurationProvider>(context, listen: false)
-                .setCase(pcCase.id);
-            Navigator.pushNamed(context, '/summary');
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Case does not fit your GPU'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
+            openDetails(context, pcCase);
         },
       ),
     );
   }
 }
 
-class CaseSearchDelegate extends SearchDelegate {
-  final Stream<QuerySnapshot> casesStream;
-  final double? gpuLength;
+void openDetails(BuildContext context, QueryDocumentSnapshot pcCase) {
+  final images = (pcCase['images'] as List<dynamic>? ?? [])
+      .map((e) => e.toString())
+      .toList();
+  final name = pcCase['name'] ?? 'Unknown PcCase';
+  final formFactor = pcCase['formFactor'] as String? ?? 'N/A';
+  final type = pcCase['type'] as String? ?? 'N/A';
+  final dimensions = pcCase['dimensions'] as String? ?? 'N/A';
+  final maxGpuLength = pcCase['maxGpuLength']?.toString() ?? 'N/A';
+  final maxCpuCoolerHeight = pcCase['maxCpuCoolerHeight']?.toString() ?? 'N/A';
+  final psuFormFactor = pcCase['psuFormFactor'] ?? 'Unknown';
+  final price = pcCase['price'] != null ? '\$${pcCase['price']}' : 'N/A';
+  final manufacturer = pcCase['manufacturer'] ?? 'Unknown';
+  final description = pcCase['description'] ?? 'No description available.';
+  final rgb = pcCase['rgb'] ?? 'Unknown';
+  final glassPanel = pcCase['glassPanel'] ?? 'Unknown';
 
-  CaseSearchDelegate(this.casesStream, this.gpuLength);
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: casesStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final results = snapshot.data!.docs.where((doc) {
-          final maxGpuLength = (doc['maxGpuLength'] as num?)?.toDouble();
-          final name = doc['name'].toString().toLowerCase();
-
-          if (gpuLength == null) return true;
-          return maxGpuLength != null &&
-              maxGpuLength >= gpuLength! &&
-              name.contains(query.toLowerCase());
-        }).toList();
-
-        return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (context, index) {
-            final pcCase = results[index];
-            final maxGpuLength = (pcCase['maxGpuLength'] as num?)?.toDouble();
-            final price = (pcCase['price'] as num?)?.toDouble();
-            final priceString = price != null ? '\$${price.toStringAsFixed(2)}' : 'Price N/A';
-            final canFitGpu = gpuLength == null || maxGpuLength == null || maxGpuLength >= gpuLength!;
-
-            return ListTile(
-              title: Text(pcCase['name']),
-              subtitle: Text('Max GPU: ${maxGpuLength?.toStringAsFixed(0) ?? 'N/A'} mm • $priceString'),
-              trailing: canFitGpu
-                  ? const Icon(Icons.check, color: Colors.green)
-                  : const Icon(Icons.warning, color: Colors.orange),
-              onTap: () {
-                close(context, pcCase);
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (images.isNotEmpty)
+                  CarouselSlider(
+                    options: CarouselOptions(
+                      height: 180,
+                      enlargeCenterPage: true,
+                      enableInfiniteScroll: false,
+                      viewportFraction: 0.85,
+                    ),
+                    items: images.map((imgUrl) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          height: 180,
+                        ),
+                      );
+                    }).toList(),
+                  )
+                else
+                  Container(
+                    height: 180,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.memory, color: Colors.white38, size: 72),
+                  ),
+                const SizedBox(height: 18),
+                // Name
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                // Description
+                Text(
+                  description,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                // Attribute table
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade900.withAlpha(80),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Table(
+                    columnWidths: const {
+                      0: IntrinsicColumnWidth(),
+                      1: FlexColumnWidth(),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      specRow('Price', price),
+                      specRow('Manufacturer', manufacturer),
+                      specRow('Form Factor', formFactor),
+                      specRow('Type', type),
+                      // specRow('Max GPU Length (mm)', maxGpuLength),
+                      specRow('Psu Form Factor', psuFormFactor),
+                      specRow('Dimensions (mm)', dimensions),
+                      specRow('RGB', rgb),
+                      specRow('Glass Panel', glassPanel),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green.shade800,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 14,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Provider.of<ConfigurationProvider>(
+                  context,
+                  listen: false,
+                ).setCase(pcCase.id);
+                Navigator.pushNamed(context, '/summary');
               },
-            );
-          },
-        );
-      },
-    );
-  }
+              child: const Text("SAVE"),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+TableRow specRow(String label, String value) {
+  return TableRow(
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    ],
+  );
 }
