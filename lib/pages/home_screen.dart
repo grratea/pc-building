@@ -151,7 +151,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 14),
                       FilledButton(
                         onPressed: () {
-                          // Navigator.pushNamed(context, '/public_configurations');
+                          Navigator.pushNamed(context, '/public_configurations');
                         },
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(50),

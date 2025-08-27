@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zavrsni/pages/PublicConfigurationsScreen.dart';
 import 'package:zavrsni/pages/auth_service.dart';
 import 'package:zavrsni/pages/auth_wrapper.dart';
 import 'package:zavrsni/pages/case_screen.dart';
@@ -67,6 +68,7 @@ class MyApp extends StatelessWidget {
         '/case': (context) => CaseScreen(),
         '/summary': (context) => SummaryScreen(),
         '/saved_configurations': (context) => SavedConfigurationsScreen(),
+        '/public_configurations': (context) => PublicConfigurationsScreen(),
       },
     );
   }

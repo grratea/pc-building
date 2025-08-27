@@ -55,7 +55,7 @@ class ConfigurationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveCurrentConfiguration(String name, String description) async {
+  Future<void> saveCurrentConfiguration(String name, String description, bool isPublic) async {
     final user = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     final data = _currentConfig.toMap();
@@ -64,6 +64,7 @@ class ConfigurationProvider extends ChangeNotifier {
     data['description'] = description;
     data['userId'] = user;
     data['savedAt'] = FieldValue.serverTimestamp();
+    data['isPublic'] = isPublic;
 
     try {
       final docRef = await firestore.collection('configurations').add(data);
@@ -74,9 +75,8 @@ class ConfigurationProvider extends ChangeNotifier {
       rethrow;
     }
   }
-
-
 }
+
 
 
 

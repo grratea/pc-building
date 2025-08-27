@@ -2,10 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+
 import 'configuration_provider.dart';
 
-class SavedConfigurationsScreen extends StatelessWidget {
-  const SavedConfigurationsScreen({super.key});
+
+class PublicConfigurationsScreen extends StatelessWidget {
+  const PublicConfigurationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +16,7 @@ class SavedConfigurationsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'My Saved Configurations',
+          'Public Configurations',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -29,11 +31,17 @@ class SavedConfigurationsScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.center,
-            colors: [Colors.green.shade600.withAlpha(260), Colors.black],
+            colors: [
+              Colors.green.shade600.withAlpha(260),
+              Colors.black,
+            ],
           ),
         ),
         child: StreamBuilder<QuerySnapshot>(
-          stream: firestore.collection('configurations').snapshots(),
+          stream: firestore
+              .collection('configurations')
+              .where('isPublic', isEqualTo: true)
+              .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -41,7 +49,7 @@ class SavedConfigurationsScreen extends StatelessWidget {
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Center(
                 child: Text(
-                  'No saved configurations found.',
+                  'No public configurations found.',
                   style: TextStyle(color: Colors.white70, fontSize: 18),
                 ),
               );
@@ -55,14 +63,13 @@ class SavedConfigurationsScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final config = configs[index];
                 final configName = config['name'] ?? 'Unnamed Configuration';
+
                 return Card(
                   color: Colors.green.shade900.withAlpha(70),
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
+                    contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     title: Text(
                       configName,
                       style: const TextStyle(
@@ -74,48 +81,6 @@ class SavedConfigurationsScreen extends StatelessWidget {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete,
-                            color: Colors.red[900],
-                            size: 25,
-                          ),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Configuration'),
-                                content: const Text(
-                                  'Are you sure you want to delete this configuration?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    child: const Text('Cancel'),
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
-                                  ),
-                                  TextButton(
-                                    child: const Text('Delete'),
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
-                                  ),
-                                ],
-                              ),
-                            );
-
-                            if (confirm == true) {
-                              await firestore
-                                  .collection('configurations')
-                                  .doc(config.id)
-                                  .delete();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Configuration deleted'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
                         const SizedBox(width: 10),
                         IconButton(
                           icon: const Icon(
@@ -128,7 +93,7 @@ class SavedConfigurationsScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    SummaryScreenWithConfig(id: config.id),
+                                    PublicSummaryScreen(id: config.id),
                               ),
                             );
                           },
@@ -146,17 +111,18 @@ class SavedConfigurationsScreen extends StatelessWidget {
   }
 }
 
-class SummaryScreenWithConfig extends StatefulWidget {
+
+class PublicSummaryScreen extends StatefulWidget {
   final String id;
 
-  const SummaryScreenWithConfig({required this.id, super.key});
+  const PublicSummaryScreen({required this.id, super.key});
 
   @override
-  State<SummaryScreenWithConfig> createState() =>
+  State<PublicSummaryScreen> createState() =>
       _SummaryScreenWithConfigState();
 }
 
-class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
+class _SummaryScreenWithConfigState extends State<PublicSummaryScreen> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Map<String, Map<String, dynamic>> componentsAll = {};
@@ -214,7 +180,7 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
     configName = config['name'] as String? ?? 'Unnamed Build';
     configDescription = config['description'] as String? ?? '';
     configUser = config['userId'] as String? ?? '';
-    _isPublic = config['isPublic'] as bool? ?? false; // load privacy status
+    _isPublic = config['isPublic'] as bool? ?? false;
 
     _nameController.text = configName!;
     _descriptionController.text = configDescription!;
@@ -246,10 +212,10 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
             .doc(entry.value!)
             .get()
             .then((doc) {
-              if (doc.exists) {
-                components[entry.key] = doc.data()!;
-              }
-            });
+          if (doc.exists) {
+            components[entry.key] = doc.data()!;
+          }
+        });
         futures.add(f);
       }
     }
@@ -442,99 +408,73 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : Form(
-                key: _formKey,
-                child: Column(
+          key: _formKey,
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          if (configName != null)
-                            Text(
-                              configName!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 28,
-                              ),
-                            ),
-                          if (configDescription != null &&
-                              configDescription!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Text(
-                                configDescription!,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          if (configUserUsername != null &&
-                              configUserUsername!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Text(
-                                'Created by: $configUserUsername',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          SwitchListTile(
-                            title: const Text(
-                              'Make configuration public',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            value: _isPublic,
-                            activeColor: Colors.green,
-                            onChanged: (value) {
-                              setState(() {
-                                _isPublic = value;
-                              });
-                            },
-                          ),
-                          ...componentsAll.entries.map(
-                            (entry) =>
-                                buildComponentCard(entry.key, entry.value),
-                          ),
-                        ],
+                    if (configName != null)
+                      Text(
+                        configName!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                        ),
                       ),
+                    if (configDescription != null &&
+                        configDescription!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          configDescription!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    if (configUserUsername != null &&
+                        configUserUsername!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'Created by: $configUserUsername',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ...componentsAll.entries.map(
+                          (entry) =>
+                          buildComponentCard(entry.key, entry.value),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      color: Colors.black.withAlpha(10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total Price: \$${totalPrice.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: _isSaving ? null : _saveConfiguration,
-                            child: _isSaving
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Save'),
-                          ),
-                        ],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.black.withAlpha(10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Price: \$${totalPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }
