@@ -7,6 +7,9 @@ class Configuration {
   String? psuId;
   String? caseId;
 
+  String? name;
+  String? description;
+  String? user;  // Usually user ID or email // mozda bolje mail
 
   Map<String, dynamic> toMap() {
     return {
@@ -17,6 +20,9 @@ class Configuration {
       'storage': storageId,
       'psu': psuId,
       'case': caseId,
+      'name': name,
+      'description': description,
+      'user': user,
     };
   }
 }

@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:zavrsni/pages/mobo_screen.dart';
 import 'package:zavrsni/pages/psu_screen.dart';
 import 'package:zavrsni/pages/ram_screen.dart';
+import 'package:zavrsni/pages/saved_configurations_screen.dart';
 import 'package:zavrsni/pages/storage_screen.dart';
 import 'package:zavrsni/pages/summary_screen.dart';
 import 'pages/configuration_provider.dart';
@@ -65,7 +66,7 @@ class MyApp extends StatelessWidget {
         '/psu': (context) => PsuScreen(),
         '/case': (context) => CaseScreen(),
         '/summary': (context) => SummaryScreen(),
-        '/saved_configurations': (context) => SummaryScreen(),
+        '/saved_configurations': (context) => SavedConfigurationsScreen(),
       },
     );
   }

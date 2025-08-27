@@ -26,18 +26,17 @@ class AuthService {
   }
 
   // Register with email and password
-  Future<User?> registerWithEmailPassword(String email, String password) async {
+  Future<User?> registerWithEmailPassword(String email, String password,
+      String username) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Create user document after registration
       if (result.user != null) {
-        await _createUserDocument(result.user!, email);
+        await _createUserDocument(
+            result.user!, email, username); // Pass username
       }
-
       return result.user;
     } catch (e) {
       print("Registration error: $e");
@@ -51,10 +50,12 @@ class AuthService {
   }
 
   // Create user document in Firestore
-  Future<void> _createUserDocument(User user, String email) async {
+  Future<void> _createUserDocument(User user, String email,
+      String username) async {
     try {
       await _firestore.collection('users').doc(user.uid).set({
         'email': email,
+        'username': username, // Store the username
         'createdAt': FieldValue.serverTimestamp(),
       });
       print("User document created for ${user.uid}");
@@ -63,17 +64,17 @@ class AuthService {
     }
   }
 
-  // Ensure user document exists (for existing users)
-  Future<void> _ensureUserDocument(User user) async {
+  Future<void> _ensureUserDocument(User user, [String username = '']) async {
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
 
       if (!doc.exists) {
-        await _createUserDocument(user, user.email ?? '');
+        // Pass username or fallback to empty string
+        await _createUserDocument(user, user.email ?? '', username);
       }
     } catch (e) {
       print("Error ensuring user document: $e");
     }
   }
-}
 
+}

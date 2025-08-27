@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
-  runApp(
-    MaterialApp(
-      home: HomePage(),
-    ),
-  );
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class _HomePageState extends State<HomePage> {
+  String? username;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername();
+  }
+
+  Future<void> _loadUsername() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) {
+        setState(() {
+          username = doc.data()?['username'] ?? 'User';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,13 +40,14 @@ class HomePage extends StatelessWidget {
         elevation: 0,
         title: const Text(
           'Build My PC',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 25),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await Provider.of<AuthService>(context, listen: false).signOut();
+              // Optionally navigate to login screen here
             },
           ),
         ],
@@ -55,27 +75,34 @@ class HomePage extends StatelessWidget {
                 size: 72,
                 color: Colors.white,
               ),
-              const SizedBox(height: 17),
+              const SizedBox(height: 20),
+
+              if (username != null)
+                Text(
+                  'Hi, $username!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 35,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+              const SizedBox(height: 20),
+
               Text(
                 'Welcome to Build My PC!',
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: 10),
               Text(
                 'Build your ideal computer configuration with compatibility checks and up-to-date prices.',
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(color: Colors.white70),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
@@ -101,7 +128,10 @@ class HomePage extends StatelessWidget {
                           backgroundColor: Colors.grey[200],
                           foregroundColor: Colors.green.shade900,
                         ),
-                        child: const Text('New Configuration', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold,),),
+                        child: const Text(
+                          'New Configuration',
+                          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       FilledButton(
@@ -113,22 +143,28 @@ class HomePage extends StatelessWidget {
                           backgroundColor: Colors.green.shade900.withAlpha(150),
                           foregroundColor: Colors.grey[200],
                         ),
-                        child: const Text('My Saved Configurations', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold,),),
+                        child: const Text(
+                          'My Saved Configurations',
+                          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       FilledButton(
                         onPressed: () {
-                          // Navigator.pushNamed(context, '/cpu');
+                          // Navigator.pushNamed(context, '/public_configurations');
                         },
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(50),
                           backgroundColor: Colors.green.shade900.withAlpha(150),
                           foregroundColor: Colors.grey[200],
                         ),
-                        child: const Text('Public Configurations', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold,),),
+                        child: const Text(
+                          'Public Configurations',
+                          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(height: 14),
-                      FilledButton(
+                      /*FilledButton(
                         onPressed: () {
                           // Navigate to component database
                         },
@@ -137,8 +173,11 @@ class HomePage extends StatelessWidget {
                           backgroundColor: Colors.green.shade900.withAlpha(150),
                           foregroundColor: Colors.grey[200],
                         ),
-                        child: const Text('Comparison Tool', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),),
-                      ),
+                        child: const Text(
+                          'Comparison Tool',
+                          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+                        ),
+                      ),*/
                     ],
                   ),
                 ),
@@ -149,37 +188,4 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-
-  // Widget _buildFeaturedComponent(BuildContext context, String name,
-  //     IconData icon) {
-  //   return Padding(
-  //     padding: const EdgeInsets.symmetric(horizontal: 8.0),
-  //     child: Card(
-  //       elevation: 4,
-  //       color: Colors.green.shade900.withAlpha(204),
-  //       child: Container(
-  //         width: 100,
-  //         padding: const EdgeInsets.all(12),
-  //         child: Column(
-  //           mainAxisAlignment: MainAxisAlignment.center,
-  //           children: [
-  //             Icon(icon, size: 36, color: Colors.white),
-  //             const SizedBox(height: 8),
-  //             Text(
-  //               name,
-  //               style: Theme
-  //                   .of(context)
-  //                   .textTheme
-  //                   .bodyMedium
-  //                   ?.copyWith(color: Colors.white),
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
 }
-
-

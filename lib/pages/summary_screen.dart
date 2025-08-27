@@ -1,7 +1,10 @@
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'configuration_provider.dart';
+import 'configuration.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -14,7 +17,16 @@ class SummaryScreenState extends State<SummaryScreen> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   double totalPrice = 0.0;
   bool isLoading = true;
+
+  String? configName;
+  String? configDescription;
+  String? configUser;
   Map<String, Map<String, dynamic>> componentsAll = {};
+
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -22,14 +34,51 @@ class SummaryScreenState extends State<SummaryScreen> {
     loadConfiguration();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> loadConfiguration() async {
     final configProvider = Provider.of<ConfigurationProvider>(context, listen: false);
-    final config = configProvider.currentConfig;
+    final Configuration config = configProvider.currentConfig;
 
-    final componentFutures = <Future>[];
-    final components = <String, Map<String, dynamic>>{};
+    String? configId = configProvider.currentConfigId;
+    if (configId == null) {
+      await _loadComponentsFromCurrentConfig(config);
+      return;
+    }
 
-    // Define component types and their IDs
+    final configDoc = await firestore.collection('configurations').doc(configId).get();
+    if (!configDoc.exists) {
+      await _loadComponentsFromCurrentConfig(config);
+      return;
+    }
+
+    final configData = configDoc.data()!;
+    configName = configData['name'] as String? ?? 'Unnamed Build';
+    configDescription = configData['description'] as String? ?? '';
+    configUser = configData['userId'] as String? ?? '';
+
+    _nameController.text = configName!;
+    _descriptionController.text = configDescription!;
+
+    final componentTypes = {
+      'CPU': configData['cpu'] as String? ?? config.cpuId,
+      'GPU': configData['gpu'] as String? ?? config.gpuId,
+      'Motherboard': configData['mobo'] as String? ?? config.motherboardId,
+      'RAM': configData['ram'] as String? ?? config.ramId,
+      'Storage': configData['storage'] as String? ?? config.storageId,
+      'PSU': configData['psu'] as String? ?? config.psuId,
+      'Case': configData['case'] as String? ?? config.caseId,
+    };
+
+    await _loadComponents(componentTypes);
+  }
+
+  Future<void> _loadComponentsFromCurrentConfig(Configuration config) async {
     final componentTypes = {
       'CPU': config.cpuId,
       'GPU': config.gpuId,
@@ -39,14 +88,16 @@ class SummaryScreenState extends State<SummaryScreen> {
       'PSU': config.psuId,
       'Case': config.caseId,
     };
+    await _loadComponents(componentTypes);
+  }
 
-    // Fetch all component data
+  Future<void> _loadComponents(Map<String, String?> componentTypes) async {
+    final components = <String, Map<String, dynamic>>{};
+    final componentFutures = <Future>[];
+
     for (final entry in componentTypes.entries) {
       if (entry.value != null) {
-        final future = firestore.collection(getCollectionName(entry.key))
-            .doc(entry.value)
-            .get()
-            .then((doc) {
+        final future = firestore.collection(getCollectionName(entry.key)).doc(entry.value).get().then((doc) {
           if (doc.exists) {
             components[entry.key] = doc.data()!;
           }
@@ -54,10 +105,9 @@ class SummaryScreenState extends State<SummaryScreen> {
         componentFutures.add(future);
       }
     }
-    // Wait for all fetches to complete
+
     await Future.wait(componentFutures);
 
-    // Calculate total price
     double total = 0.0;
     components.forEach((_, data) {
       final price = (data['price'] as num?)?.toDouble() ?? 0.0;
@@ -73,14 +123,22 @@ class SummaryScreenState extends State<SummaryScreen> {
 
   String getCollectionName(String componentType) {
     switch (componentType) {
-      case 'CPU': return 'cpus';
-      case 'GPU': return 'gpus';
-      case 'Motherboard': return 'mobos';
-      case 'RAM': return 'rams';
-      case 'Storage': return 'storages';
-      case 'PSU': return 'psus';
-      case 'Case': return 'cases';
-      default: return '';
+      case 'CPU':
+        return 'cpus';
+      case 'GPU':
+        return 'gpus';
+      case 'Motherboard':
+        return 'mobos';
+      case 'RAM':
+        return 'rams';
+      case 'Storage':
+        return 'storages';
+      case 'PSU':
+        return 'psus';
+      case 'Case':
+        return 'cases';
+      default:
+        return '';
     }
   }
 
@@ -100,20 +158,13 @@ class SummaryScreenState extends State<SummaryScreen> {
         leading: getComponentIcon(title),
         title: Text(
           data['name'] ?? 'Unknown Component',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 17,
-          ),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(
-              priceString,
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-            ),
+            Text(priceString, style: const TextStyle(color: Colors.white70, fontSize: 15)),
             if (title == 'CPU' && data['socket'] != null)
               Text('Socket: ${data['socket']}', style: const TextStyle(color: Colors.white70)),
             if (title == 'GPU' && data['memory'] != null)
@@ -134,14 +185,60 @@ class SummaryScreenState extends State<SummaryScreen> {
 
   Widget getComponentIcon(String componentType) {
     switch (componentType) {
-      case 'CPU': return const Icon(Icons.memory, color: Colors.white, size: 30);
-      case 'GPU': return const Icon(Icons.videogame_asset, color: Colors.white, size: 30);
-      case 'Motherboard': return const Icon(Icons.developer_board, color: Colors.white, size: 30);
-      case 'RAM': return const Icon(Icons.memory, color: Colors.white, size: 30);
-      case 'Storage': return const Icon(Icons.storage, color: Colors.white, size: 30);
-      case 'PSU': return const Icon(Icons.power, color: Colors.white, size: 30);
-      case 'Case': return const Icon(Icons.computer, color: Colors.white, size: 30);
-      default: return const Icon(Icons.device_unknown, color: Colors.white, size: 30);
+      case 'CPU':
+        return const Icon(Icons.memory, color: Colors.white, size: 30);
+      case 'GPU':
+        return const Icon(Icons.videogame_asset, color: Colors.white, size: 30);
+      case 'Motherboard':
+        return const Icon(Icons.developer_board, color: Colors.white, size: 30);
+      case 'RAM':
+        return const Icon(Icons.memory, color: Colors.white, size: 30);
+      case 'Storage':
+        return const Icon(Icons.storage, color: Colors.white, size: 30);
+      case 'PSU':
+        return const Icon(Icons.power, color: Colors.white, size: 30);
+      case 'Case':
+        return const Icon(Icons.computer, color: Colors.white, size: 30);
+      default:
+        return const Icon(Icons.device_unknown, color: Colors.white, size: 30);
+    }
+  }
+
+  Future<void> _saveConfiguration() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+
+    final configProvider = Provider.of<ConfigurationProvider>(context, listen: false);
+
+    final data = configProvider.currentConfig.toMap();
+    data['name'] = _nameController.text.trim();
+    data['description'] = _descriptionController.text.trim();
+    data['userId'] = FirebaseAuth.instance.currentUser?.uid ?? ''; // ensure userId included
+    data['savedAt'] = FieldValue.serverTimestamp();
+
+    try {
+      if (configProvider.currentConfigId == null) {
+        final docRef = await firestore.collection('configurations').add(data);
+        configProvider.currentConfigId = docRef.id;
+      } else {
+        await firestore.collection('configurations').doc(configProvider.currentConfigId).set(data);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Configuration saved successfully!')),
+      );
+
+      // Navigate to home screen after save success:
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $e')),
+      );
+    } finally {
+      setState(() => _isSaving = false);
     }
   }
 
@@ -169,83 +266,125 @@ class SummaryScreenState extends State<SummaryScreen> {
         ),
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Column(
-          children: [
-            Expanded(
-              child: ListView(
-                children: [
-                  const SizedBox(height: 20),
-                  const Center(
-                    child: Text(
-                      'Your PC Build',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+            : Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Configuration Name',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white70),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.green),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ...componentsAll.entries.map((entry) => buildComponentCard(entry.key, entry.value)).toList(),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.black.withAlpha(10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Price:',
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '\$${totalPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(color: Colors.green, fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[800],
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter configuration name';
+                        }
+                        return null;
                       },
-                      child: const Text(
-                        'Edit Configuration',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade800,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _descriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Description (optional)',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white70),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.green),
+                        ),
                       ),
-                      onPressed: () {
-                        // Implement purchase functionality
-                      },
-                      child: const Text(
-                        'Complete Build',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
+                      maxLines: 2,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    if (configUser != null && configUser!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          'Created by: $configUser',
+                          style: const TextStyle(color: Colors.white54, fontSize: 14),
+                        ),
+                      ),
+
+                    ...componentsAll.entries.map((entry) => buildComponentCard(entry.key, entry.value)).toList(),
+                  ],
+                ),
               ),
-            ),
-          ],
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.black.withAlpha(10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total Price:',
+                      style:
+                      TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '\$${totalPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                          color: Colors.green, fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[800],
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          'Edit Configuration',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade800,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: _isSaving ? null : _saveConfiguration,
+                        child: _isSaving
+                            ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        )
+                            : const Text(
+                          'Save Configuration',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
