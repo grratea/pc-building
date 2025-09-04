@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'configuration.dart';
 
 class ConfigurationProvider extends ChangeNotifier {
-  final Configuration _currentConfig = Configuration();
+  late Configuration _currentConfig = Configuration();
   String? _cpuSocket;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   String? _currentConfigId;
@@ -52,6 +52,12 @@ class ConfigurationProvider extends ChangeNotifier {
 
   void setCase(String caseId) {
     _currentConfig.caseId = caseId;
+    notifyListeners();
+  }
+
+  void resetConfiguration() {
+    _currentConfig = Configuration();
+    _currentConfigId = null;
     notifyListeners();
   }
 

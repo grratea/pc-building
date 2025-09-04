@@ -4,12 +4,37 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'configuration_provider.dart';
 
+
 class SavedConfigurationsScreen extends StatelessWidget {
   const SavedConfigurationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final firestore = FirebaseFirestore.instance;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'My Saved Configurations',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 25,
+            ),
+          ),
+          backgroundColor: Colors.black,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: Text(
+            'Please log in to see your configurations',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -33,7 +58,10 @@ class SavedConfigurationsScreen extends StatelessWidget {
           ),
         ),
         child: StreamBuilder<QuerySnapshot>(
-          stream: firestore.collection('configurations').snapshots(),
+          stream: firestore
+              .collection('configurations')
+              .where('userId', isEqualTo: user.uid)
+              .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -55,14 +83,13 @@ class SavedConfigurationsScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final config = configs[index];
                 final configName = config['name'] ?? 'Unnamed Configuration';
+
                 return Card(
                   color: Colors.green.shade900.withAlpha(70),
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
+                    contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     title: Text(
                       configName,
                       style: const TextStyle(
@@ -91,13 +118,11 @@ class SavedConfigurationsScreen extends StatelessWidget {
                                 actions: [
                                   TextButton(
                                     child: const Text('Cancel'),
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
+                                    onPressed: () => Navigator.of(context).pop(false),
                                   ),
                                   TextButton(
                                     child: const Text('Delete'),
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
+                                    onPressed: () => Navigator.of(context).pop(true),
                                   ),
                                 ],
                               ),
@@ -146,6 +171,7 @@ class SavedConfigurationsScreen extends StatelessWidget {
   }
 }
 
+
 class SummaryScreenWithConfig extends StatefulWidget {
   final String id;
 
@@ -168,12 +194,12 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
   String? configUser;
   String? configUserUsername;
 
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  bool _isSaving = false;
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  bool isSaving = false;
 
-  bool _isPublic = false;
+  bool isPublic = false;
 
   @override
   void initState() {
@@ -183,8 +209,8 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
+    nameController.dispose();
+    descriptionController.dispose();
     super.dispose();
   }
 
@@ -214,10 +240,10 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
     configName = config['name'] as String? ?? 'Unnamed Build';
     configDescription = config['description'] as String? ?? '';
     configUser = config['userId'] as String? ?? '';
-    _isPublic = config['isPublic'] as bool? ?? false; // load privacy status
+    isPublic = config['isPublic'] as bool? ?? false; // load privacy status
 
-    _nameController.text = configName!;
-    _descriptionController.text = configDescription!;
+    nameController.text = configName!;
+    descriptionController.text = configDescription!;
 
     if (configUser != null && configUser!.isNotEmpty) {
       final userDoc = await firestore.collection('users').doc(configUser).get();
@@ -377,10 +403,10 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
     }
   }
 
-  Future<void> _saveConfiguration() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> updateConfiguration() async {
+    if (!formKey.currentState!.validate()) return;
 
-    setState(() => _isSaving = true);
+    setState(() => isSaving = true);
 
     final configProvider = Provider.of<ConfigurationProvider>(
       context,
@@ -389,11 +415,11 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
     final configId = widget.id;
 
     final data = configProvider.currentConfig.toMap();
-    data['name'] = _nameController.text.trim();
-    data['description'] = _descriptionController.text.trim();
+    data['name'] = nameController.text.trim();
+    data['description'] = descriptionController.text.trim();
     data['userId'] = FirebaseAuth.instance.currentUser?.uid ?? '';
     data['savedAt'] = FieldValue.serverTimestamp();
-    data['isPublic'] = _isPublic;
+    data['isPublic'] = isPublic;
 
     try {
       await firestore.collection('configurations').doc(configId).set(data);
@@ -405,14 +431,14 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
       await loadSavedConfiguration();
 
       if (mounted) {
-        setState(() {}); // refresh UI as needed
+        setState(() {});
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
     } finally {
-      setState(() => _isSaving = false);
+      setState(() => isSaving = false);
     }
   }
 
@@ -442,7 +468,7 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : Form(
-                key: _formKey,
+                key: formKey,
                 child: Column(
                   children: [
                     Expanded(
@@ -487,11 +513,11 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
                               'Make configuration public',
                               style: TextStyle(color: Colors.white),
                             ),
-                            value: _isPublic,
+                            value: isPublic,
                             activeColor: Colors.green,
                             onChanged: (value) {
                               setState(() {
-                                _isPublic = value;
+                                isPublic = value;
                               });
                             },
                           ),
@@ -517,8 +543,8 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: _isSaving ? null : _saveConfiguration,
-                            child: _isSaving
+                            onPressed: isSaving ? null : updateConfiguration,
+                            child: isSaving
                                 ? const SizedBox(
                                     width: 24,
                                     height: 24,

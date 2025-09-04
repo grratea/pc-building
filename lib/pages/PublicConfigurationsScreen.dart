@@ -371,7 +371,7 @@ class _SummaryScreenWithConfigState extends State<PublicSummaryScreen> {
       await loadSavedConfiguration();
 
       if (mounted) {
-        setState(() {}); // refresh UI as needed
+        setState(() {});
       }
     } catch (e) {
       ScaffoldMessenger.of(

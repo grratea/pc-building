@@ -22,7 +22,7 @@ class LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     final user = await Provider.of<AuthService>(context, listen: false)
-        .signInWithEmailPassword(
+        .signIn(
       emailController.text.trim(),
       passwordController.text.trim(),
     );
@@ -31,7 +31,7 @@ class LoginScreenState extends State<LoginScreen> {
 
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please try again.')),
+        const SnackBar(content: Text('Login failed. Please try again.'), backgroundColor: Colors.red,),
       );
     }
   }
@@ -41,7 +41,6 @@ class LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      // gradient background
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

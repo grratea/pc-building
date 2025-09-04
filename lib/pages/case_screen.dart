@@ -58,6 +58,10 @@ class CaseScreenState extends State<CaseScreen> {
           final maxGpuLength = (doc['maxGpuLength'] as num?)?.toDouble();
           final name = doc['name'].toString().toLowerCase();
 
+          if (gpuLength == null) {
+            return name.contains(searchQuery);
+          }
+
           return maxGpuLength != null &&
               maxGpuLength >= gpuLength! &&
               name.contains(searchQuery);

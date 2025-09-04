@@ -20,10 +20,10 @@ class MoboScreenState extends State<MoboScreen> {
   @override
   void initState() {
     super.initState();
-    _updateStream();
+    getMobos();
   }
 
-  void _updateStream() {
+  void getMobos() {
     final configProvider = Provider.of<ConfigurationProvider>(
       context,
       listen: false,

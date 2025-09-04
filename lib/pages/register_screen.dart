@@ -145,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => isLoading = true);
 
     final user = await Provider.of<AuthService>(context, listen: false)
-        .registerWithEmailPassword(
+        .register(
       emailController.text.trim(),
       passwordController.text.trim(),
       usernameController.text.trim(),

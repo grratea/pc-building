@@ -2,21 +2,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  // Stream of user authentication state
-  Stream<User?> get user => _auth.authStateChanges();
+  Stream<User?> get user => auth.authStateChanges();
 
-  // Sign in with email and password
-  Future<User?> signInWithEmailPassword(String email, String password) async {
+  Future<User?> signIn(String email, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
+      UserCredential result = await auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       if (result.user != null) {
-        await _ensureUserDocument(result.user!);
+        await checkUserDocument(result.user!);
       }
       return result.user;
     } catch (e) {
@@ -24,18 +22,18 @@ class AuthService {
       return null;
     }
   }
-
-  // Register with email and password
-  Future<User?> registerWithEmailPassword(String email, String password,
-      String username) async {
+  Future<User?> register(
+    String email,
+    String password,
+    String username,
+  ) async {
     try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
+      UserCredential result = await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       if (result.user != null) {
-        await _createUserDocument(
-            result.user!, email, username); // Pass username
+        await createUserDocument(result.user!, email, username);
       }
       return result.user;
     } catch (e) {
@@ -43,19 +41,19 @@ class AuthService {
       return null;
     }
   }
-
-  // Sign out
   Future<void> signOut() async {
-    await _auth.signOut();
+    await auth.signOut();
   }
 
-  // Create user document in Firestore
-  Future<void> _createUserDocument(User user, String email,
-      String username) async {
+  Future<void> createUserDocument(
+    User user,
+    String email,
+    String username,
+  ) async {
     try {
-      await _firestore.collection('users').doc(user.uid).set({
+      await firestore.collection('users').doc(user.uid).set({
         'email': email,
-        'username': username, // Store the username
+        'username': username,
         'createdAt': FieldValue.serverTimestamp(),
       });
       print("User document created for ${user.uid}");
@@ -64,17 +62,15 @@ class AuthService {
     }
   }
 
-  Future<void> _ensureUserDocument(User user, [String username = '']) async {
+  Future<void> checkUserDocument(User user, [String username = '']) async {
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final doc = await firestore.collection('users').doc(user.uid).get();
 
-      if (!doc.exists) {
-        // Pass username or fallback to empty string
-        await _createUserDocument(user, user.email ?? '', username);
-      }
+      /*if (!doc.exists) {
+        await createUserDocument(user, user.email ?? '', username);
+      }*/
     } catch (e) {
       print("Error ensuring user document: $e");
     }
   }
-
 }

@@ -8,19 +8,19 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   String? username;
 
   @override
   void initState() {
     super.initState();
-    _loadUsername();
+    loadUsername();
   }
 
-  Future<void> _loadUsername() async {
+  Future<void> loadUsername() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
@@ -47,7 +47,6 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await Provider.of<AuthService>(context, listen: false).signOut();
-              // Optionally navigate to login screen here
             },
           ),
         ],
