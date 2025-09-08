@@ -62,7 +62,7 @@ class StorageScreenState extends State<StorageScreen> {
               doc['name'].toString().toLowerCase().contains(searchQuery))
               .toList();
 
-          // Filtering logic by type
+          // FILTIRIRA PO TIPU HDD ILI SSD
           if (selectedTypeFilter != null && selectedTypeFilter != "All") {
             storages = storages
                 .where((doc) =>

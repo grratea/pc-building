@@ -163,6 +163,8 @@ class HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // dodati ???
                       /*FilledButton(
                         onPressed: () {
                           // Navigate to component database

@@ -9,7 +9,7 @@ class Configuration {
 
   String? name;
   String? description;
-  String? user;  // Usually user ID or email // mozda bolje mail
+  String? user;  // mozda bolje mail ?
 
   Map<String, dynamic> toMap() {
     return {

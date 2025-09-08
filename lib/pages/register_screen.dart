@@ -129,10 +129,10 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class RegisterScreenState extends State<RegisterScreen> {
   final formKey = GlobalKey<FormState>();
   final usernameController = TextEditingController();
   final emailController = TextEditingController();
@@ -158,7 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SnackBar(content: Text('Registration failed. Please try again.')),
       );
     } else {
-      Navigator.pop(context); // Go back to Login
+      Navigator.pop(context); // VRACAS SE NAZAD NA LOGIN
     }
   }
 

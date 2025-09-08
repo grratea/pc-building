@@ -179,10 +179,10 @@ class SummaryScreenWithConfig extends StatefulWidget {
 
   @override
   State<SummaryScreenWithConfig> createState() =>
-      _SummaryScreenWithConfigState();
+      SummaryScreenWithConfigState();
 }
 
-class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
+class SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Map<String, Map<String, dynamic>> componentsAll = {};
@@ -329,7 +329,7 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
       color: Colors.green.shade900.withOpacity(0.3),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: _getComponentIcon(title),
+        leading: getComponentIcon(title),
         title: Text(
           data['name'] ?? 'Unknown Component',
           style: const TextStyle(
@@ -382,7 +382,7 @@ class _SummaryScreenWithConfigState extends State<SummaryScreenWithConfig> {
     );
   }
 
-  Widget _getComponentIcon(String componentType) {
+  Widget getComponentIcon(String componentType) {
     switch (componentType) {
       case 'CPU':
         return const Icon(Icons.memory, color: Colors.white, size: 30);

@@ -9,10 +9,10 @@ class CpuScreen extends StatefulWidget {
   const CpuScreen({super.key});
 
   @override
-  State<CpuScreen> createState() => _CpuScreenState();
+  State<CpuScreen> createState() => CpuScreenState();
 }
 
-class _CpuScreenState extends State<CpuScreen> {
+class CpuScreenState extends State<CpuScreen> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   late Stream<QuerySnapshot> cpusStream;
 

@@ -193,8 +193,8 @@ void openDetails(BuildContext context, QueryDocumentSnapshot pcCase) {
   final formFactor = pcCase['formFactor'] as String? ?? 'N/A';
   final type = pcCase['type'] as String? ?? 'N/A';
   final dimensions = pcCase['dimensions'] as String? ?? 'N/A';
-  final maxGpuLength = pcCase['maxGpuLength']?.toString() ?? 'N/A';
-  final maxCpuCoolerHeight = pcCase['maxCpuCoolerHeight']?.toString() ?? 'N/A';
+  //final maxGpuLength = pcCase['maxGpuLength']?.toString() ?? 'N/A';
+  //final maxCpuCoolerHeight = pcCase['maxCpuCoolerHeight']?.toString() ?? 'N/A';
   final psuFormFactor = pcCase['psuFormFactor'] ?? 'Unknown';
   final price = pcCase['price'] != null ? '\$${pcCase['price']}' : 'N/A';
   final manufacturer = pcCase['manufacturer'] ?? 'Unknown';
@@ -319,6 +319,8 @@ void openDetails(BuildContext context, QueryDocumentSnapshot pcCase) {
     },
   );
 }
+
+
 
 TableRow specRow(String label, String value) {
   return TableRow(

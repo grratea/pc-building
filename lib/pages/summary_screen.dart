@@ -204,7 +204,7 @@ class SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
-  Future<void> _saveConfiguration() async {
+  Future<void> saveConfiguration() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
@@ -365,7 +365,7 @@ class SummaryScreenState extends State<SummaryScreen> {
                           backgroundColor: Colors.green.shade800,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        onPressed: _isSaving ? null : _saveConfiguration,
+                        onPressed: _isSaving ? null : saveConfiguration,
                         child: _isSaving
                             ? const CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

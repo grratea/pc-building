@@ -2,7 +2,6 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:zavrsni/pages/cpu_screen.dart';
 import 'package:zavrsni/pages/top_screen.dart';
 import 'configuration_provider.dart';
 
