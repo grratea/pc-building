@@ -8,6 +8,7 @@ import 'package:zavrsni/pages/gpu_screen.dart';
 import 'package:zavrsni/pages/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:zavrsni/pages/login_screen.dart';
 import 'package:zavrsni/pages/mobo_screen.dart';
 import 'package:zavrsni/pages/psu_screen.dart';
 import 'package:zavrsni/pages/ram_screen.dart';
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const AuthWrapper(),
       routes: {
+        '/login': (context) => LoginScreen(),
         '/home': (context) => HomePage(),
         '/cpu': (context) => CpuScreen(),
         '/mobo': (context) => MoboScreen(),

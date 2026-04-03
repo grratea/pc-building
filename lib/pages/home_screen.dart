@@ -47,6 +47,7 @@ class HomePageState extends State<HomePage> {
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await Provider.of<AuthService>(context, listen: false).signOut();
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
             },
           ),
         ],
